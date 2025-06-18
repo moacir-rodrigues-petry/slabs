@@ -1,0 +1,5 @@
+# Core dependencies for PyChat
+# Phase 1 implementation has minimal external dependencies
+
+# Will be used in Phase 3 for GUI
+# tkinter is included in Python standard library, so no need to list it here
