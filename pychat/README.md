@@ -24,6 +24,7 @@ To run the PyChat command-line interface:
 ## Commands
 
 Once running, the following commands are available:
+
 - `/help` - Show help message
 - `/quit` - Exit the chat
 - `/users` - List active users

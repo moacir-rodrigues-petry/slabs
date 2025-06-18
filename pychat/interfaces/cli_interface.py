@@ -5,7 +5,8 @@ import sys
 import threading
 import time
 import readline  # For better input handling
-from typing import List, Optional
+import getpass
+from typing import List, Optional, Dict, Any
 
 from pychat.common.message import Message
 from pychat.common.utils import format_message_for_display
@@ -17,25 +18,91 @@ class CLIInterface(ChatInterface):
     """
     Command-line interface for PyChat
     """
-    def __init__(self, username: str, display_name: Optional[str] = None):
-        """
-        Initialize the CLI interface
-        
-        Args:
-            username: Username for this interface
-            display_name: Display name (defaults to username)
-        """
-        super().__init__(username, display_name)
+    def __init__(self):
+        """Initialize the CLI interface"""
+        super().__init__()
         
         # For displaying messages
         self.message_lock = threading.Lock()
         self.running = True
+    
+    def _login_prompt(self) -> bool:
+        """
+        Show login prompt
         
-        # Show welcome message and instructions
-        self._show_welcome()
+        Returns:
+            True if login successful, False otherwise
+        """
+        print("\n==================================================")
+        print("PyChat Login")
+        print("==================================================")
         
-        # Show message history
-        self._show_message_history()
+        # Get username and password
+        username = input("Username: ")
+        if not username:
+            print("Username cannot be empty.")
+            return False
+        
+        password = getpass.getpass("Password: ")
+        if not password:
+            print("Password cannot be empty.")
+            return False
+        
+        # Try to login
+        if self.login(username, password):
+            print(f"Welcome back, {self.user.display_name}!")
+            return True
+        else:
+            print("Login failed. Invalid username or password.")
+            return False
+    
+    def _register_prompt(self) -> bool:
+        """
+        Show registration prompt
+        
+        Returns:
+            True if registration successful, False otherwise
+        """
+        print("\n==================================================")
+        print("PyChat Registration")
+        print("==================================================")
+        
+        # Get registration info
+        username = input("Username: ")
+        if not username:
+            print("Username cannot be empty.")
+            return False
+        
+        display_name = input("Display Name (optional): ")
+        if not display_name:
+            display_name = username
+        
+        email = input("Email (optional): ")
+        
+        password = getpass.getpass("Password: ")
+        if not password:
+            print("Password cannot be empty.")
+            return False
+        
+        password_confirm = getpass.getpass("Confirm Password: ")
+        if password != password_confirm:
+            print("Passwords do not match.")
+            return False
+        
+        # Try to register
+        if self.register(username, password, display_name, email):
+            print("Registration successful!")
+            
+            # Auto-login
+            if self.login(username, password):
+                print(f"Welcome, {self.user.display_name}!")
+                return True
+            else:
+                print("Auto-login failed. Please login manually.")
+                return False
+        else:
+            print("Registration failed. Username may already be taken.")
+            return False
     
     def _show_welcome(self) -> None:
         """Show welcome message and instructions"""
@@ -48,7 +115,11 @@ class CLIInterface(ChatInterface):
         print("  /quit              - Exit the chat")
         print("  /users             - List active users")
         print("  /msg <user> <text> - Send private message")
-        print("  /history           - Show message history")
+        print("  /history [n]       - Show message history (default: 10)")
+        print("  /profile [user]    - View user profile")
+        print("  /conversations     - List private conversations")
+        print("  /status <status>   - Update your status (online, away, busy)")
+        print("  /logout            - Logout from current session")
         print("==================================================\n")
     
     def _show_message_history(self, limit: int = 10) -> None:
@@ -99,6 +170,55 @@ class CLIInterface(ChatInterface):
                 print(f"  {user}")
         print()
     
+    def _show_profile(self, username: Optional[str] = None) -> None:
+        """
+        Show user profile
+        
+        Args:
+            username: Username to show profile for (current user if None)
+        """
+        profile = self.get_user_profile(username)
+        if not profile:
+            print(f"User {username or 'profile'} not found.")
+            return
+        
+        print("\nUser Profile:")
+        print(f"  Username: {profile['username']}")
+        print(f"  Display Name: {profile['display_name']}")
+        if profile.get('email'):
+            print(f"  Email: {profile['email']}")
+        print(f"  Status: {profile['status']}")
+        print(f"  Last Seen: {profile['last_seen']}")
+        print()
+    
+    def _list_conversations(self) -> None:
+        """List private conversations"""
+        conversations = self.get_conversations()
+        if not conversations:
+            print("No private conversations.")
+            return
+        
+        print("\nPrivate conversations:")
+        for user, last_time in conversations:
+            print(f"  {user.display_name} ({user.username}) - Last message: {last_time}")
+        print()
+    
+    def _update_status(self, status: str) -> None:
+        """
+        Update user status
+        
+        Args:
+            status: New status (online, away, busy)
+        """
+        if status not in ['online', 'away', 'busy', 'offline']:
+            print("Invalid status. Use 'online', 'away', or 'busy'.")
+            return
+        
+        if self.update_status(status):
+            print(f"Status updated to: {status}")
+        else:
+            print("Failed to update status.")
+    
     def _process_command(self, command: str) -> bool:
         """
         Process a command
@@ -125,8 +245,52 @@ class CLIInterface(ChatInterface):
             return True
         
         # Show history command
-        if command == "/history":
-            self._show_message_history(20)
+        if command.startswith("/history"):
+            parts = command.split()
+            limit = 10
+            if len(parts) > 1:
+                try:
+                    limit = int(parts[1])
+                except ValueError:
+                    print("Invalid limit. Using default (10).")
+            
+            self._show_message_history(limit)
+            return True
+        
+        # Profile command
+        if command.startswith("/profile"):
+            parts = command.split()
+            username = None
+            if len(parts) > 1:
+                username = parts[1]
+            
+            self._show_profile(username)
+            return True
+        
+        # Conversations command
+        if command == "/conversations":
+            self._list_conversations()
+            return True
+        
+        # Status command
+        if command.startswith("/status"):
+            parts = command.split()
+            if len(parts) < 2:
+                print("Usage: /status <online|away|busy>")
+                return True
+            
+            self._update_status(parts[1])
+            return True
+        
+        # Logout command
+        if command == "/logout":
+            self.logout()
+            print("You have been logged out.")
+            
+            # Prompt for login
+            if not self._auth_prompt():
+                return False
+            
             return True
         
         # Private message command
@@ -140,13 +304,16 @@ class CLIInterface(ChatInterface):
             content = parts[2]
             
             # Check if user exists
-            users = {user.username: user for user in self.get_active_users()}
-            if recipient not in users:
-                print(f"User '{recipient}' is not active.")
+            if not self.chat_manager.get_user(recipient):
+                print(f"User '{recipient}' does not exist.")
                 return True
             
             # Send the message
-            self.send_message(content, recipient)
+            if self.send_message(content, recipient):
+                pass  # Message will be displayed by the callback
+            else:
+                print("Failed to send message.")
+            
             return True
         
         # Unknown command
@@ -156,10 +323,46 @@ class CLIInterface(ChatInterface):
         
         return True
     
+    def _auth_prompt(self) -> bool:
+        """
+        Show authentication prompt
+        
+        Returns:
+            True if authentication successful, False to exit
+        """
+        while True:
+            print("\n==================================================")
+            print("Welcome to PyChat!")
+            print("==================================================")
+            print("1. Login")
+            print("2. Register")
+            print("3. Exit")
+            
+            choice = input("Choose an option (1-3): ")
+            
+            if choice == "1":
+                if self._login_prompt():
+                    return True
+            elif choice == "2":
+                if self._register_prompt():
+                    return True
+            elif choice == "3":
+                return False
+            else:
+                print("Invalid option. Please try again.")
+    
     def run(self) -> None:
         """Run the CLI interface"""
         try:
-            while self.running:
+            # Authenticate first
+            if not self._auth_prompt():
+                return
+            
+            # Show welcome message and message history
+            self._show_welcome()
+            self._show_message_history()
+            
+            while self.running and self.is_authenticated():
                 try:
                     # Get input from user
                     user_input = input("> ")
@@ -167,11 +370,23 @@ class CLIInterface(ChatInterface):
                     # Process commands
                     if user_input.startswith("/"):
                         self.running = self._process_command(user_input)
+                        if not self.running:
+                            break
+                        
+                        # Check if still authenticated after command
+                        if not self.is_authenticated():
+                            print("Your session has expired. Please login again.")
+                            if not self._auth_prompt():
+                                break
+                        
                         continue
                     
                     # Send normal message
                     if user_input.strip():
-                        self.send_message(user_input)
+                        if not self.send_message(user_input):
+                            print("Failed to send message. You may need to login again.")
+                            if not self._auth_prompt():
+                                break
                 
                 except KeyboardInterrupt:
                     print("\nUse /quit to exit.")
@@ -185,19 +400,7 @@ class CLIInterface(ChatInterface):
 
 def main() -> None:
     """Main entry point for the CLI interface"""
-    # Get username
-    username = input("Enter your username: ")
-    if not username:
-        print("Username cannot be empty.")
-        return
-    
-    # Get display name (optional)
-    display_name = input("Enter your display name (or press Enter to use username): ")
-    if not display_name:
-        display_name = username
-    
-    # Create and run interface
-    interface = CLIInterface(username, display_name)
+    interface = CLIInterface()
     interface.run()
 
 

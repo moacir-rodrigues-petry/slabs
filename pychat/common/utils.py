@@ -4,7 +4,13 @@ Utility functions for PyChat
 import os
 import json
 import datetime
-from typing import Any, Dict, List
+import hashlib
+import uuid
+import re
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pychat.common.message import Message
 
 
 def ensure_directory(directory_path: str) -> None:
@@ -96,3 +102,113 @@ def format_message_for_display(sender: str, content: str, timestamp: datetime.da
     
     time_str = timestamp.strftime("%H:%M:%S")
     return f"[{time_str}] {sender}: {content}"
+
+
+def generate_random_id() -> str:
+    """
+    Generate a random ID
+    
+    Returns:
+        Random ID string
+    """
+    return str(uuid.uuid4())
+
+
+def validate_username(username: str) -> bool:
+    """
+    Validate a username
+    
+    Args:
+        username: The username to validate
+        
+    Returns:
+        True if valid, False otherwise
+    """
+    # Username should be 3-20 characters, alphanumeric and underscores only
+    pattern = re.compile(r'^[a-zA-Z0-9_]{3,20}$')
+    return bool(pattern.match(username))
+
+
+def validate_email(email: str) -> bool:
+    """
+    Validate an email address
+    
+    Args:
+        email: The email to validate
+        
+    Returns:
+        True if valid, False otherwise
+    """
+    if not email:
+        return True  # Empty email is valid (optional)
+    
+    # Simple email validation pattern
+    pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    return bool(pattern.match(email))
+
+
+def validate_password(password: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate a password
+    
+    Args:
+        password: The password to validate
+        
+    Returns:
+        Tuple of (valid, error_message)
+    """
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters"
+    
+    return True, None
+
+
+def format_timestamp(timestamp: datetime.datetime, include_date: bool = False) -> str:
+    """
+    Format a timestamp for display
+    
+    Args:
+        timestamp: The timestamp to format
+        include_date: Whether to include the date
+        
+    Returns:
+        Formatted timestamp string
+    """
+    if include_date:
+        return timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    return timestamp.strftime("%H:%M:%S")
+
+
+def truncate_text(text: str, max_length: int = 50) -> str:
+    """
+    Truncate text to a maximum length
+    
+    Args:
+        text: The text to truncate
+        max_length: Maximum length
+        
+    Returns:
+        Truncated text
+    """
+    if len(text) <= max_length:
+        return text
+    return text[:max_length - 3] + "..."
+
+
+def format_private_message(message: 'Message', current_user: str) -> str:
+    """
+    Format a private message for display
+    
+    Args:
+        message: The message to format
+        current_user: The current user's username
+        
+    Returns:
+        Formatted message string
+    """
+    time_str = message.timestamp.strftime('%H:%M:%S')
+    
+    if message.sender == current_user:
+        return f"[{time_str}] You -> {message.recipient}: {message.content}"
+    else:
+        return f"[{time_str}] {message.sender} -> You: {message.content}"
