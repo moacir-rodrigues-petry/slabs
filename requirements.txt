@@ -1,5 +1,7 @@
 # Core dependencies for PyChat
-# Phase 1 implementation has minimal external dependencies
+# Phase 1 & 2 implementation has minimal external dependencies
 
-# Will be used in Phase 3 for GUI
+# Phase 3 GUI implementation dependencies
 # tkinter is included in Python standard library, so no need to list it here
+pillow>=9.0.0  # For handling images in tkinter
+emoji>=2.0.0   # For emoji support
