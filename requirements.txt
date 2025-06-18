@@ -5,3 +5,8 @@
 # tkinter is included in Python standard library, so no need to list it here
 pillow>=9.0.0  # For handling images in tkinter
 emoji>=2.0.0   # For emoji support
+
+# Testing dependencies
+pytest>=7.0.0
+pytest-mock>=3.8.0
+pytest-cov>=3.0.0
