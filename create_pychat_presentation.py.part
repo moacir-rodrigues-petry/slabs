@@ -1,0 +1,46 @@
+def create_ppt_from_markdown(md_file, output_file):
+    """Create a PowerPoint presentation from a markdown file."""
+    # Read markdown content
+    with open(md_file, 'r', encoding='utf-8') as f:
+        md_content = f.read()
+    
+    # Process markdown content
+    slides = process_markdown_content(md_content)
+    
+    # Create presentation
+    prs = Presentation()
+    
+    # Define slide dimensions (16:9 aspect ratio)
+    prs.slide_width = Inches(13.33)
+    prs.slide_height = Inches(7.5)
+    
+    for i, slide_info in enumerate(slides):
+        title = slide_info["title"]
+        content = slide_info["content"]
+        
+        # Handle different slide types
+        if i == 0 or slide_info.get("is_title_slide", False):
+            # Title slide
+            date = slide_info.get("date", "June 19, 2025")
+            create_title_slide(prs, title, subtitle="A Simple Python Chat Application", date=date)
+        
+        # Special handling for code examples slide
+        elif "Running the Application" in title or "bash" in content:
+            # Extract code blocks if present
+            code_content = ""
+            for line in content.split('\n'):
+                if line.strip() and not line.startswith('-'):
+                    code_content += line + "\n"
+            create_code_slide(prs, title, code_content)
+        
+        # Special handling for Demo slide
+        elif "Demo & Questions" in title:
+            create_demo_slide(prs, title, content="Thank you for your attention!\n\nQuestions?")
+        
+        # Regular content slides
+        else:
+            create_content_slide(prs, title, content)
+    
+    # Save presentation
+    prs.save(output_file)
+    print(f"Presentation saved to {output_file}")
